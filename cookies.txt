@@ -8,12 +8,12 @@
 .instagram.com	TRUE	/	TRUE	1798220589	ps_l	1
 .instagram.com	TRUE	/	TRUE	1798220589	ps_n	1
 .instagram.com	TRUE	/	TRUE	1795196592	ig_nrcb	1
-.instagram.com	TRUE	/	TRUE	1771246030	wd	1528x740
-.instagram.com	TRUE	/	TRUE	1771246030	dpr	2.5
-.instagram.com	TRUE	/	TRUE	1805201236	csrftoken	KKHKzgrfW1oWKgDzeVFjRUDh1M6RkG5F
-.instagram.com	TRUE	/	TRUE	1778417236	ds_user_id	80656371865
+.instagram.com	TRUE	/	TRUE	1771248874	wd	1528x740
+.instagram.com	TRUE	/	TRUE	1771248874	dpr	2.5
+.instagram.com	TRUE	/	TRUE	1805204079	csrftoken	KKHKzgrfW1oWKgDzeVFjRUDh1M6RkG5F
+.instagram.com	TRUE	/	TRUE	1778420079	ds_user_id	80656371865
 .instagram.com	TRUE	/	TRUE	1802177226	sessionid	80656371865%3AU4EeMh9ZlZEQuq%3A3%3AAYj0lImvwff-o6oHNOoH2W1OZTZzQWpGchn2er5Rxg
-.instagram.com	TRUE	/	TRUE	0	rur	"NCG\05480656371865\0541802177236:01feea1cf4ff90cc909f9f1656e2801203bb03626f73f3737892c1b1fc3ddc397a99b5c6"
+.instagram.com	TRUE	/	TRUE	0	rur	"NCG\05480656371865\0541802180079:01fe8b096e961b1c396b882f8f6a1921102281534f0b31fc8866413e4964184332053d6d"
 .facebook.com	TRUE	/	TRUE	1797957054	datr	iIveaJaNyHHnfgIRSt_dOpn9
 .facebook.com	TRUE	/	TRUE	1804959640	sb	joveaHZVL8fSwY2dAMtVyXiu
 .facebook.com	TRUE	/	TRUE	1793975212	ps_l	1
