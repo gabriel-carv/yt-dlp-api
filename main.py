@@ -6,18 +6,16 @@ import os
 import tempfile
 import uuid
 import urllib.request
-from datetime import timedelta
 
 from google.cloud import storage
 
 app = FastAPI()
 
-# Cookies (optional)
+# Optional cookies file baked into the image (or override via env var)
 COOKIES_PATH = os.getenv("YTDLP_COOKIES_PATH", "/app/cookies.txt")
 
-# GCS settings
-MERGE_BUCKET = os.getenv("MERGE_BUCKET", "").strip()  # required for /merge
-SIGNED_URL_MINUTES = int(os.getenv("SIGNED_URL_MINUTES", "15"))
+# GCS bucket to store merged outputs (set this env var in Cloud Run)
+MERGE_BUCKET = os.getenv("MERGE_BUCKET", "").strip()
 GCS_PREFIX = os.getenv("GCS_PREFIX", "merged/").strip()  # optional folder prefix in bucket
 
 
@@ -84,7 +82,13 @@ def has_video(meta: dict) -> bool:
     return any(s.get("codec_type") == "video" for s in meta.get("streams", []))
 
 
-def upload_and_sign(local_path: str, object_name: str, content_type: str) -> dict:
+def upload_and_public_url(local_path: str, object_name: str, content_type: str) -> dict:
+    """
+    Upload to GCS and return a PUBLIC download URL (no expiry).
+    You must grant the bucket (or objects) public read access for this to work:
+      - Principal: allUsers
+      - Role: Storage Object Viewer
+    """
     if not MERGE_BUCKET:
         raise HTTPException(
             status_code=500,
@@ -98,33 +102,14 @@ def upload_and_sign(local_path: str, object_name: str, content_type: str) -> dic
     blob.upload_from_filename(local_path, content_type=content_type)
 
     gs_uri = f"gs://{MERGE_BUCKET}/{object_name}"
-
-    # Signed URL (temporary). This usually works on Cloud Run without any key file,
-    # as long as the runtime service account can sign URLs.
-    download_url = None
-    try:
-        download_url = blob.generate_signed_url(
-            version="v4",
-            expiration=timedelta(minutes=SIGNED_URL_MINUTES),
-            method="GET",
-        )
-    except Exception as e:
-        # If signing isn't permitted, still return gs:// and object name
-        return {
-            "ok": True,
-            "gs_uri": gs_uri,
-            "object_name": object_name,
-            "download_url": None,
-            "note": "Upload succeeded but signed URL generation failed. See 'sign_error'.",
-            "sign_error": str(e),
-        }
+    public_url = f"https://storage.googleapis.com/{MERGE_BUCKET}/{object_name}"
 
     return {
         "ok": True,
         "gs_uri": gs_uri,
         "object_name": object_name,
-        "download_url": download_url,
-        "expires_in_minutes": SIGNED_URL_MINUTES,
+        "download_url": public_url,
+        "note": "Public URL (no expiry).",
     }
 
 
@@ -137,7 +122,6 @@ def health():
         "merge_bucket_set": bool(MERGE_BUCKET),
         "merge_bucket": MERGE_BUCKET or None,
         "gcs_prefix": GCS_PREFIX,
-        "signed_url_minutes": SIGNED_URL_MINUTES,
     }
 
 
@@ -173,7 +157,6 @@ def merge(req: MergeReq):
     if out_ext not in ("mp4", "mkv"):
         raise HTTPException(status_code=400, detail="output_ext must be mp4 or mkv")
 
-    # We will always upload MP4/MKV to GCS and return a signed link
     content_type = "video/mp4" if out_ext == "mp4" else "video/x-matroska"
 
     with tempfile.TemporaryDirectory() as td:
@@ -191,14 +174,13 @@ def merge(req: MergeReq):
         a_has_v, a_has_a = has_video(a_meta), has_audio(a_meta)
         b_has_v, b_has_a = has_video(b_meta), has_audio(b_meta)
 
-        # If one already has both audio+video, upload that file directly
-        if a_has_v and a_has_a:
-            object_name = f"{GCS_PREFIX}{out_name}"
-            return upload_and_sign(a_path, object_name, content_type)
+        object_name = f"{GCS_PREFIX}{out_name}"
 
+        # If one file already has both audio+video, upload it as-is
+        if a_has_v and a_has_a:
+            return upload_and_public_url(a_path, object_name, content_type)
         if b_has_v and b_has_a:
-            object_name = f"{GCS_PREFIX}{out_name}"
-            return upload_and_sign(b_path, object_name, content_type)
+            return upload_and_public_url(b_path, object_name, content_type)
 
         # Identify which input is video and which is audio
         if a_has_v and b_has_a:
@@ -215,6 +197,7 @@ def merge(req: MergeReq):
                 },
             )
 
+        # Mux without re-encoding
         run_cmd([
             "ffmpeg", "-y",
             "-i", v_in,
@@ -226,5 +209,4 @@ def merge(req: MergeReq):
             out_path
         ])
 
-        object_name = f"{GCS_PREFIX}{out_name}"
-        return upload_and_sign(out_path, object_name, content_type)
+        return upload_and_public_url(out_path, object_name, content_type)
